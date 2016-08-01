@@ -1,0 +1,22 @@
+
+# Get the Distinguished Name with this filter
+#$strFilter = "(&(objectCategory=group)(cn=myCustomGroup))"
+# Use the distiguish name with the following filter
+#$strFilter = "(&(objectCategory=user)(memberOf=cn=MyCustomGroup,ou=ouOfGroup,dc=subdomain,dc=domain,dc=com))"
+
+
+
+$objDomain = New-Object System.DirectoryServices.DirectoryEntry
+$objSearcher = New-Object System.DirectoryServices.DirectorySearcher
+$objSearcher.SearchRoot = $objDomain
+$objSearcher.PageSize = 1000
+$objSearcher.Filter = $strFilter
+$objSearcher.SearchScope = "Subtree"
+
+$colProplist = "name"
+foreach ($i in $colPropList){$objSearcher.PropertiesToLoad.Add($i)}
+
+$colResults = $objSearcher.FindAll()
+
+foreach ($objResult in $colResults)
+    {$objItem = $objResult.Properties; $objItem.name}
