@@ -30,7 +30,7 @@ function GetRoleAssignmentsForUser($scope, $searchString,[boolean]$doLoggingOnly
 
 
 function GetGroupMembers($groupName){
-    $groups= import-csv C:\Gruppen_Ista.csv  -Delimiter ';'
+    $groups= import-csv C:\groupMappings.csv  -Delimiter ';'
     $members= $groups| where {$_.Name.ToLower() -eq $groupName.ToLower()} 
     return $members
 }
