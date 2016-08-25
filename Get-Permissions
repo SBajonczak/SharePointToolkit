@@ -1,0 +1,143 @@
+$webs = Get-SPWebApplication  | Get-SPSite -Limit All | Get-SPWeb -Limit All | Select Title, URL, ID, ParentWebID 
+
+$exportFile ="c:\allPermissions.txt"
+$logfile="c:\log.txt"
+
+function GetRoleAssignmentsForUser($scope, $searchString,[boolean]$doLoggingOnly, $loggingFile){
+    $lolderRoleAssignments = $scope.RoleAssignments | where { $_.Member.GetType().Name.ToString() -eq "SPUser" -and  $_.Member -like "*"+ $searchString.ToLower() -or $_.Member.DisplayName -like $searchString.ToLower() }
+    if (!($lolderRoleAssignments -eq $null))
+	{
+                            
+        foreach($lassignment in $lolderRoleAssignments){
+            foreach($lroledefBinding in $lassignment.RoleDefinitionBindings){
+                if (!($lroledefBinding.Name -eq "Beschränkter Zugriff") -and !($lroledefBinding.Name -eq "")){
+                write-host "List" + $list.Title
+                write-host "      Assign list Permission" $froledefBinding.Name;
+                $output = $BaseOutput + ";"+ $list.Url +";List;" + $roleDefBinding.Name
+                $output >> $loggingFile
+
+                if ($doLoggingOnly -eq $false){
+                    $lroleAssignment=New-Object Microsoft.SharePoint.SPRoleAssignment($group) 
+                    $lroleDefinition=$web.RoleDefinitions[$lroledefBinding.Name] 
+                    $lroleAssignment.RoleDefinitionBindings.Add($lroleDefinition) 
+                    $list.RoleAssignments.Add($lroleAssignment); 
+                }
+             }
+            }
+        } 
+    }
+}
+
+
+function GetGroupMembers($groupName){
+    $groups= import-csv C:\Gruppen_Ista.csv  -Delimiter ';'
+    $members= $groups| where {$_.Name.ToLower() -eq $groupName.ToLower()} 
+    return $members
+}
+
+function PersistGroupMembers($groupName, $members,$logfileForMissingUsers){
+    
+     # Check if Group exists in Excel
+        $members = GetGroupMembers($groupName) 
+        if ($members.Length -eq 0){ 
+            ## Group not exists!!!!!!!
+            write-host  $BaseOutput
+            $BaseOutput >> $exportFile
+        }
+        else
+        {
+            write-host $web.Url
+            try{
+                write-host "Try to get SP Group " + $newGroupName
+                   
+            }
+            catch{
+                
+                    
+            }
+                
+        $users = $users | select User
+        if ($users.Length -eq 0)
+        {
+            $missingUser= "Missing User for Group: " + $groupName
+            $missingUser >> $logfileForMissingUsers #"c:\missingUsers.txt"
+        }
+        else
+        {
+            foreach($user in $users){
+                if (!($user -eq $null)){
+                    try{
+                        $wUser= $web.EnsureUser($user.User)
+                        $group.AddUser($wUser)
+                        write-host "      Added user to group"  + $user.User
+                    }
+                    catch{
+                            
+                    }
+                }
+            }
+        }
+
+
+}
+
+
+"Name; URL; location; Type;Permission " >> $exportFile
+foreach ($webEntry in $webs){
+    
+   # The Web Object
+   $web = Get-SPWeb  $webEntry.Url
+   # ITerate only, if this has a unique Role Assignment
+   if ($web.HasUniqueRoleAssignments -eq $true){
+       # Get only Ad Groups
+       
+       $adGroups = $web.Users| where { $_.IsDomainGroup -eq $true }
+       if ($adGroups.Length -gt 0){
+           # There exists a ad group
+           $webEntry.Url >> $logfile
+           # Iterate ewach group
+           foreach($adGroup in $adGroups){
+               # Do some convertions
+               $BaseOutput = $adGroup.Name.split('\')[0]+";" + $web.Url
+               $groupName = $adGroup.Name;
+               if ($adGroup.Name.Contains('\')){
+                    $groupName =  $adGroup.Name.split('\')[1];
+               }
+
+              
+                PersistGroupMembers($groupName,"c:\missingUsers.txt")
+                GetRoleAssignmentsForUser($web, $groupName,$true, $exportFile)
+                foreach ($list in $web.Lists){
+                    if ($list.HasUniqueRoleAssignments){
+                      GetRoleAssignmentsForUser($list, $groupName,$true, $exportFile)
+                    }
+                }
+
+                # to each Folder in list 
+                foreach ($list in $web.Lists){
+                   foreach ($folder in $list.Folders){
+						if ($folder.HasUniqueRoleAssignments){
+                            GetRoleAssignmentsForUser($folder, $groupName,$true, $exportFile)
+						}
+					}
+					
+					foreach ($item in $list.Items){
+						if ($item.HasUniqueRoleAssignments){
+                            GetRoleAssignmentsForUser($item, $groupName,$true, $exportFile)
+						}
+					}
+					
+                }
+                
+                $adGroup.Name >> $logfile
+                foreach ($user in $users){
+                     "          " + $user.USer >> $logfile
+                }
+               }
+          }
+       }
+   }
+}
+
+
+
